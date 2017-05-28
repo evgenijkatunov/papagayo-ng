@@ -44,21 +44,27 @@ phoneme_set = [
 
 # Phoneme conversion dictionary: CMU on the left to Preston Blair on the right
 phoneme_conversion = {
+    'AA': 'AI',
     'AA0': 'AI',  # odd     AA D
     'AA1': 'AI',
     'AA2': 'AI',
+    'AE': 'AI',
     'AE0': 'AI',  # at   AE T
     'AE1': 'AI',
     'AE2': 'AI',
+    'AH': 'AI',
     'AH0': 'AI',  # hut  HH AH T
     'AH1': 'AI',
     'AH2': 'AI',
+    'AO': 'O',
     'AO0': 'O',  # ought AO T
     'AO1': 'O',
     'AO2': 'O',
+    'AW': 'O',
     'AW0': 'O',  # cow   K AW
     'AW1': 'O',
     'AW2': 'O',
+    'AY': 'AI',
     'AY0': 'AI',  # hide HH AY D
     'AY1': 'AI',
     'AY2': 'AI',
@@ -66,21 +72,26 @@ phoneme_conversion = {
     'CH': 'etc',  # cheese   CH IY Z
     'D': 'etc',  # dee   D IY
     'DH': 'etc',  # thee DH IY
+    'EH': 'E',  # Ed    EH D
     'EH0': 'E',  # Ed    EH D
     'EH1': 'E',
     'EH2': 'E',
+    'ER': 'E',
     'ER0': 'E',  # hurt  HH ER T
     'ER1': 'E',
     'ER2': 'E',
+    'EY': 'E',
     'EY0': 'E',  # ate   EY T
     'EY1': 'E',
     'EY2': 'E',
     'F': 'FV',  # fee    F IY
     'G': 'etc',  # green G R IY N
     'HH': 'etc',  # he   HH IY
+    'IH': 'AI',
     'IH0': 'AI',  # it   IH T
     'IH1': 'AI',
     'IH2': 'AI',
+    'IY': 'E',
     'IY0': 'E',  # eat   IY T
     'IY1': 'E',
     'IY2': 'E',
@@ -90,9 +101,11 @@ phoneme_conversion = {
     'M': 'MBP',  # me    M IY
     'N': 'L',  # knee  N IY
     'NG': 'L',  # ping P IH NG
+    'OW': 'O',
     'OW0': 'O',  # oat   OW T
     'OW1': 'O',
     'OW2': 'O',
+    'OY': 'WQ',
     'OY0': 'WQ',  # toy  T OY
     'OY1': 'WQ',
     'OY2': 'WQ',
@@ -102,9 +115,11 @@ phoneme_conversion = {
     'SH': 'etc',  # she  SH IY
     'T': 'etc',  # tea   T IY
     'TH': 'etc',  # theta    TH EY T AH
+    'UH': 'U',
     'UH0': 'U',  # hood  HH UH D
     'UH1': 'U',
     'UH2': 'U',
+    'UW': 'U',
     'UW0': 'U',  # two   T UW
     'UW1': 'U',
     'UW2': 'U',
@@ -113,6 +128,7 @@ phoneme_conversion = {
     'Y': 'etc',  # yield Y IY L D
     'Z': 'etc',  # zee   Z IY
     'ZH': 'etc',  # seizure  S IY ZH ER
+    'REST': 'rest',
     # The following phonemes are not part of the CMU phoneme set, but are meant to fix bugs in the CMU dictionary
     'E21': 'E'  # E21 is used in ENGINEER
 }

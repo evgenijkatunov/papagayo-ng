@@ -16,10 +16,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#import os
+# import os
 import shutil
 import codecs
 import importlib
+import json
+import requests
+import copy
+from io import FileIO
 
 try:
     import configparser
@@ -31,8 +35,9 @@ from utilities import *
 from PronunciationDialog import PronunciationDialog
 import SoundPlayer
 import traceback
-#import sys
-#import breakdowns
+
+# import sys
+# import breakdowns
 
 strip_symbols = '.,!?;-/()"'
 strip_symbols += '\N{INVERTED QUESTION MARK}'
@@ -61,7 +66,7 @@ class LipsyncWord:
             text = self.text.strip(strip_symbols)
             details = languagemanager.language_table[language]
             if details["type"] == "breakdown":
-                #exec ("import %s as breakdown" % details["breakdown_class"])
+                # exec ("import %s as breakdown" % details["breakdown_class"])
                 breakdown = importlib.import_module(details["breakdown_class"])
                 pronunciation_raw = breakdown.breakdownWord(text)
             elif details["type"] == "dictionary":
@@ -179,13 +184,35 @@ class LipsyncPhrase:
 ###############################################################
 
 class LipsyncVoice:
-    def __init__(self, name="Voice"):
+    def __init__(self, name="Voice", autolipsync=False, fps=None):
         self.name = name
         self.text = ""
         self.phrases = []
+        self.phonemes = []
+        self.raw_phonemes = []
+        self.is_auto = autolipsync
+        self.start_frame = 0
+        self.end_frame = 0
+        self.fps = fps
 
     def RunBreakdown(self, frameDuration, parentWindow, language, languagemanager, phonemeset):
         # make sure there is a space after all punctuation marks
+        if self.is_auto:
+            self.start_frame = 0
+            self.end_frame = frameDuration
+            first_phoneme = copy.copy(self.raw_phonemes[0])
+            first_phoneme.text = phonemeset.conversion[first_phoneme.text]
+            self.phonemes = [first_phoneme]
+            for i in range(1, len(self.raw_phonemes)):
+                current_phoneme = self.raw_phonemes[i]
+                phoneme = phonemeset.conversion[current_phoneme.text]
+                if phoneme != self.phonemes[-1].text:
+                    added_phoneme = LipsyncPhoneme()
+                    added_phoneme.text = phoneme
+                    added_phoneme.frame = int(current_phoneme.frame * self.fps)
+                    self.phonemes.append(added_phoneme)
+            return
+
         repeatLoop = True
         while repeatLoop:
             repeatLoop = False
@@ -290,6 +317,25 @@ class LipsyncVoice:
         self.name = inFile.readline().strip()
         tempText = inFile.readline().strip()
         self.text = tempText.replace('|', '\n')
+        self.is_auto = int(inFile.readline()) == 1
+        if self.is_auto:
+            raw_phonemes_count = int(inFile.readline())
+            self.raw_phonemes = []
+            for i in range(raw_phonemes_count):
+                phoneme = LipsyncPhoneme()
+                phonemeLine = inFile.readline().split()
+                phoneme.frame = float(phonemeLine[0])
+                phoneme.text = phonemeLine[1]
+                self.raw_phonemes.append(phoneme)
+            phonemes_count = int(inFile.readline())
+            self.phonemes = []
+            for i in range(phonemes_count):
+                phoneme = LipsyncPhoneme()
+                phonemeLine = inFile.readline().split()
+                phoneme.frame = int(phonemeLine[0])
+                phoneme.text = phonemeLine[1]
+                self.phonemes.append(phoneme)
+            return
         numPhrases = int(inFile.readline())
         for p in range(numPhrases):
             phrase = LipsyncPhrase()
@@ -317,6 +363,15 @@ class LipsyncVoice:
         outFile.write("\t%s\n" % self.name)
         tempText = self.text.replace('\n', '|')
         outFile.write("\t%s\n" % tempText)
+        outFile.write("\t%d\n" % self.is_auto)
+        if self.is_auto:
+            outFile.write("\t%d\n" % len(self.raw_phonemes))
+            for phoneme in self.raw_phonemes:
+                outFile.write("\t\t%f %s\n" % (phoneme.frame, phoneme.text))
+            outFile.write("\t%d\n" % len(self.phonemes))
+            for phoneme in self.phonemes:
+                outFile.write("\t\t%d %s\n" % (phoneme.frame, phoneme.text))
+            return
         outFile.write("\t%d\n" % len(self.phrases))
         for phrase in self.phrases:
             outFile.write("\t\t%s\n" % phrase.text)
@@ -329,20 +384,28 @@ class LipsyncVoice:
                     outFile.write("\t\t\t\t%d %s\n" % (phoneme.frame, phoneme.text))
 
     def GetPhonemeAtFrame(self, frame):
-        for phrase in self.phrases:
-            if (frame <= phrase.endFrame) and (frame >= phrase.startFrame):
-                # we found the phrase that contains this frame
-                word = None
-                for w in phrase.words:
-                    if (frame <= w.endFrame) and (frame >= w.startFrame):
-                        word = w  # the frame is inside this word
-                        break
-                if word is not None:
-                    # we found the word that contains this frame
-                    for i in range(len(word.phonemes) - 1, -1, -1):
-                        if frame >= word.phonemes[i].frame:
-                            return word.phonemes[i].text
-                break
+        if self.is_auto:
+            for i in range(0, len(self.phonemes) - 1):
+                current_phoneme = self.phonemes[i]
+                next_phoneme = self.phonemes[i + 1]
+                if current_phoneme.frame <= frame < next_phoneme.frame:
+                    return current_phoneme.text
+            return self.phonemes[-1].text
+        else:
+            for phrase in self.phrases:
+                if (frame <= phrase.endFrame) and (frame >= phrase.startFrame):
+                    # we found the phrase that contains this frame
+                    word = None
+                    for w in phrase.words:
+                        if (frame <= w.endFrame) and (frame >= w.startFrame):
+                            word = w  # the frame is inside this word
+                            break
+                    if word is not None:
+                        # we found the word that contains this frame
+                        for i in range(len(word.phonemes) - 1, -1, -1):
+                            if frame >= word.phonemes[i].frame:
+                                return word.phonemes[i].text
+                    break
         return "rest"
 
     def Export(self, path):
@@ -356,6 +419,9 @@ class LipsyncVoice:
             if startFrame != 0:
                 phoneme = "rest"
                 outFile.write("%d %s\n" % (1, phoneme))
+        elif self.is_auto:
+            startFrame = self.start_frame
+            endFrame = self.end_frame
         else:
             startFrame = 0
             endFrame = 1
@@ -380,6 +446,9 @@ class LipsyncVoice:
         if len(self.phrases) > 0:
             startFrame = self.phrases[0].startFrame
             endFrame = self.phrases[-1].endFrame
+        elif self.is_auto:
+            startFrame = self.start_frame
+            endFrame = self.end_frame
         else:
             startFrame = 0
             endFrame = 1
@@ -463,6 +532,7 @@ class LipsyncDoc:
         self.currentVoice = None
         self.language_manager = langman
         self.parent = parent
+        self.autolipsyncHost = 'http://localhost'
 
     def __del__(self):
         # Properly close down the sound object
@@ -488,6 +558,7 @@ class LipsyncDoc:
         numVoices = int(inFile.readline())
         for i in range(numVoices):
             voice = LipsyncVoice()
+
             voice.Open(inFile)
             self.voices.append(voice)
         inFile.close()
@@ -495,7 +566,7 @@ class LipsyncDoc:
         if len(self.voices) > 0:
             self.currentVoice = self.voices[0]
 
-    def OpenAudio(self, path):
+    def OpenAudio(self, path, autolipsync=False):
         if self.sound is not None:
             del self.sound
             self.sound = None
@@ -513,6 +584,22 @@ class LipsyncDoc:
                 print(("soundDuration2: %d" % self.soundDuration))
         else:
             self.sound = None
+
+        # Autolipsync
+        if path.endswith('.wav') and autolipsync:
+            with open(path, 'rb') as f:
+                r = requests.post(self.autolipsyncHost+'/phonemes', files={'wave': f})
+                if r.status_code != 200:
+                    pass
+                phonemes_str = r.text
+            phonemes = json.loads(phonemes_str)['phonemes']
+            voice = LipsyncVoice("Auto", True, self.fps)
+            for phoneme in phonemes:
+                lipsync_phoneme = LipsyncPhoneme()
+                lipsync_phoneme.text = phoneme['phoneme'].upper()
+                lipsync_phoneme.frame = phoneme['start_time']
+                voice.raw_phonemes.append(lipsync_phoneme)
+            self.voices.append(voice)
 
     def Save(self, path):
         self.path = os.path.normpath(path)

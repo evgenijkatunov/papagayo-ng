@@ -712,41 +712,17 @@ class WaveformView(wx.ScrolledWindow):
             self.wordBottom = topBorder + 4 + textHeight + textHeight + textHeight
             self.phonemeTop = cs.height - 4 - textHeight - textHeight
             dc.SetTextForeground(textCol)
-            for phrase in self.doc.currentVoice.phrases:
-                dc.SetBrush(wx.Brush(phraseFillCol))
-                dc.SetPen(wx.Pen(phraseOutlineCol))
-                r = wx.Rect(phrase.startFrame * self.frameWidth, topBorder,
-                            (phrase.endFrame - phrase.startFrame + 1) * self.frameWidth + 1, textHeight)
-                if (self.clipRect is not None) and (not r.Intersects(self.clipRect)):
-                    continue  # speed things up by skipping off-screen phrases
-                phrase.top = r.y
-                phrase.bottom = r.y + r.height
-                dc.DrawRectangle(r.x, r.y, r.width, r.height)
-                r.Inflate(-4, 0)
-                if not self.isWxPhoenix:
-                    dc.SetClippingRect(r)
-                else:
-                    # WxWidgets - Phoenix
-                    dc.SetClippingRegion(r)
-                dc.DrawLabel(phrase.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
-                dc.DestroyClippingRegion()
-                if self.clipRect is not None:
-                    if not self.isWxPhoenix:
-                        dc.SetClippingRect(self.clipRect)
-                    else:
-                        # WxWidgets - Phoenix
-                        dc.SetClippingRegion(self.clipRect)
-
-                wordCount = 0
-                for word in phrase.words:
-                    dc.SetBrush(wx.Brush(wordFillCol))
-                    dc.SetPen(wx.Pen(wordOutlineCol))
-                    r = wx.Rect(word.startFrame * self.frameWidth, topBorder + 4 + textHeight,
-                                (word.endFrame - word.startFrame + 1) * self.frameWidth + 1, textHeight)
-                    if wordCount % 2:
-                        r.y += textHeight
-                    word.top = r.y
-                    word.bottom = r.y + r.height
+            phonemeCount = 0
+            if not self.doc.currentVoice.is_auto:
+                for phrase in self.doc.currentVoice.phrases:
+                    dc.SetBrush(wx.Brush(phraseFillCol))
+                    dc.SetPen(wx.Pen(phraseOutlineCol))
+                    r = wx.Rect(phrase.startFrame * self.frameWidth, topBorder,
+                                (phrase.endFrame - phrase.startFrame + 1) * self.frameWidth + 1, textHeight)
+                    if (self.clipRect is not None) and (not r.Intersects(self.clipRect)):
+                        continue  # speed things up by skipping off-screen phrases
+                    phrase.top = r.y
+                    phrase.bottom = r.y + r.height
                     dc.DrawRectangle(r.x, r.y, r.width, r.height)
                     r.Inflate(-4, 0)
                     if not self.isWxPhoenix:
@@ -754,7 +730,7 @@ class WaveformView(wx.ScrolledWindow):
                     else:
                         # WxWidgets - Phoenix
                         dc.SetClippingRegion(r)
-                    dc.DrawLabel(word.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+                    dc.DrawLabel(phrase.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
                     dc.DestroyClippingRegion()
                     if self.clipRect is not None:
                         if not self.isWxPhoenix:
@@ -762,20 +738,56 @@ class WaveformView(wx.ScrolledWindow):
                         else:
                             # WxWidgets - Phoenix
                             dc.SetClippingRegion(self.clipRect)
-                    dc.SetBrush(wx.Brush(phonemeFillCol))
-                    dc.SetPen(wx.Pen(phonemeOutlineCol))
-                    phonemeCount = 0
-                    for phoneme in word.phonemes:
-                        r = wx.Rect(phoneme.frame * self.frameWidth, cs.height - 4 - textHeight, self.frameWidth + 1,
-                                    textHeight)
-                        if phonemeCount % 2:
-                            r.y -= textHeight
-                        phoneme.top = r.y
-                        phoneme.bottom = r.y + r.height
+
+                    wordCount = 0
+                    for word in phrase.words:
+                        dc.SetBrush(wx.Brush(wordFillCol))
+                        dc.SetPen(wx.Pen(wordOutlineCol))
+                        r = wx.Rect(word.startFrame * self.frameWidth, topBorder + 4 + textHeight,
+                                    (word.endFrame - word.startFrame + 1) * self.frameWidth + 1, textHeight)
+                        if wordCount % 2:
+                            r.y += textHeight
+                        word.top = r.y
+                        word.bottom = r.y + r.height
                         dc.DrawRectangle(r.x, r.y, r.width, r.height)
-                        dc.DrawLabel(phoneme.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
-                        phonemeCount += 1
-                    wordCount += 1
+                        r.Inflate(-4, 0)
+                        if not self.isWxPhoenix:
+                            dc.SetClippingRect(r)
+                        else:
+                            # WxWidgets - Phoenix
+                            dc.SetClippingRegion(r)
+                        dc.DrawLabel(word.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+                        dc.DestroyClippingRegion()
+                        if self.clipRect is not None:
+                            if not self.isWxPhoenix:
+                                dc.SetClippingRect(self.clipRect)
+                            else:
+                                # WxWidgets - Phoenix
+                                dc.SetClippingRegion(self.clipRect)
+                        dc.SetBrush(wx.Brush(phonemeFillCol))
+                        dc.SetPen(wx.Pen(phonemeOutlineCol))
+                        for phoneme in word.phonemes:
+                            r = wx.Rect(phoneme.frame * self.frameWidth, cs.height - 4 - textHeight, self.frameWidth + 1,
+                                        textHeight)
+                            if phonemeCount % 2:
+                                r.y -= textHeight
+                            phoneme.top = r.y
+                            phoneme.bottom = r.y + r.height
+                            dc.DrawRectangle(r.x, r.y, r.width, r.height)
+                            dc.DrawLabel(phoneme.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+                            phonemeCount += 1
+                        wordCount += 1
+            else:
+                for phoneme in self.doc.currentVoice.phonemes:
+                    r = wx.Rect(phoneme.frame * self.frameWidth, cs.height - 4 - textHeight, self.frameWidth + 1,
+                                textHeight)
+                    if phonemeCount % 2:
+                        r.y -= textHeight
+                    phoneme.top = r.y
+                    phoneme.bottom = r.y + r.height
+                    dc.DrawRectangle(r.x, r.y, r.width, r.height)
+                    dc.DrawLabel(phoneme.text, r, wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+                    phonemeCount += 1
         # draw the play marker
         if drawPlayMarker:
             x = curFrame * self.frameWidth

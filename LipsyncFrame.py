@@ -120,6 +120,8 @@ class LipsyncFrame(wx.Frame):
         ID_ZOOMOUT = wx.NewId()
         global ID_ZOOM1
         ID_ZOOM1 = wx.NewId()
+        global ID_AUTOSLIPSYNC
+        ID_AUTOSLIPSYNC = wx.NewId()
         self.mainFrame_toolbar.AddLabelTool(wx.ID_OPEN, _("Open"),
                                             wx.Bitmap(os.path.join(get_main_dir(), "rsrc/open.png")), wx.NullBitmap,
                                             wx.ITEM_NORMAL, _("Open"), _("Open a sound file or Papagayo-NG project"))
@@ -143,6 +145,9 @@ class LipsyncFrame(wx.Frame):
         self.mainFrame_toolbar.AddLabelTool(ID_ZOOM1, _("Reset Zoom"),
                                             wx.Bitmap(os.path.join(get_main_dir(), "rsrc/zoom_1.png")), wx.NullBitmap,
                                             wx.ITEM_NORMAL, _("Reset Zoom"), _("Reset the zoomed view of the waveform"))
+        self.mainFrame_toolbar.AddCheckTool(ID_AUTOSLIPSYNC, _("Autolipsync"),
+                                            wx.Bitmap(os.path.join(get_main_dir(), "rsrc/zoom_1.png")))
+        self.autolipsync = False
         # Tool Bar end
         self.panel_2 = wx.Panel(self, wx.ID_ANY)
         self.waveformView = WaveformView(self.panel_2, wx.ID_ANY)
@@ -274,6 +279,8 @@ class LipsyncFrame(wx.Frame):
         wx.EVT_TOOL(self, ID_ZOOMIN, self.waveformView.OnZoomIn)
         wx.EVT_TOOL(self, ID_ZOOMOUT, self.waveformView.OnZoomOut)
         wx.EVT_TOOL(self, ID_ZOOM1, self.waveformView.OnZoom1)
+        #TODO: add autorecogn
+        wx.EVT_TOOL(self, ID_AUTOSLIPSYNC, self.OnAutolipsync)
         # voice settings
         wx.EVT_CHOICE(self, ID_MOUTHCHOICE, self.OnMouthChoice)
         wx.EVT_CHOICE(self, ID_EXPORTCHOICE, self.OnExportChoice)
@@ -427,6 +434,9 @@ class LipsyncFrame(wx.Frame):
 
     def Open(self, path):
         self.doc = LipsyncDoc(self.langman, self)
+        config = configparser.ConfigParser()
+        config.read(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'papagayo-ng.ini'))
+        self.doc.autolipsyncHost = config['DEFAULT']['AutolipsyncHost']
         if path.endswith(lipsyncExtension):
             # open a lipsync project
             self.doc.Open(path)
@@ -448,7 +458,7 @@ class LipsyncFrame(wx.Frame):
         else:
             # open an audio file
             self.doc.fps = int(self.config.Read("LastFPS", "24"))
-            self.doc.OpenAudio(path)
+            self.doc.OpenAudio(path, self.autolipsync)
             if self.doc.sound is None:
                 self.doc = None
             else:
@@ -586,6 +596,9 @@ class LipsyncFrame(wx.Frame):
             self.mainFrame_toolbar.EnableTool(ID_PLAY, True)
             self.mainFrame_toolbar.EnableTool(ID_STOP, False)
             self.mainFrame_statusbar.SetStatusText("Stopped", 1)
+
+    def OnAutolipsync(self, event=None):
+        self.autolipsync = not self.autolipsync
 
     def OnPlayTick(self, event):
         if (self.doc is not None) and (self.doc.sound is not None):
